@@ -136,6 +136,42 @@ st.markdown(f"**Connection:** {status_dot} {status_text}")
 if not client_ok and st.session_state.get("_conn_error"):
     st.caption(f"Note: {st.session_state['_conn_error']}")
 
+# ---------- Diagnostics ----------
+with st.expander("🔍 Connection diagnostics", expanded=not client_ok):
+    creds_raw = st.secrets.get("google_credentials")
+    sa_email = None
+    try:
+        if isinstance(creds_raw, str):
+            sa_email = json.loads(creds_raw).get("client_email")
+        elif isinstance(creds_raw, dict):
+            sa_email = creds_raw.get("client_email")
+    except Exception:
+        pass
+    st.write("- **Service account email**:", sa_email or "(missing)")
+    st.write("- **Spreadsheet**:", SHEET_NAME)
+    st.write("- **Worksheet**:", WORKSHEET_NAME)
+
+    if st.button("Run diagnostics"):
+        client = get_sheets_client()
+        if client is None:
+            st.error("No Google Sheets client. Check secrets format and API access.")
+        else:
+            try:
+                sh = client.open(SHEET_NAME)
+                st.success("Opened spreadsheet successfully")
+                try:
+                    ws = sh.worksheet(WORKSHEET_NAME)
+                    st.success("Found worksheet successfully")
+                except gspread.WorksheetNotFound:
+                    ws = sh.add_worksheet(title=WORKSHEET_NAME, rows=1000, cols=6)
+                    ws.append_row(["Date", "Type", "Mode", "Category", "Amount", "Notes"])  # headers
+                    st.warning("Worksheet was missing; created it and added headers.")
+                try:
+                    _ = ws.row_count
+                    st.success("Worksheet is readable")
+                except Exception as e:
+                    st.error(f"Read test failed: {e}")
+
 st.title("Coin Path")
 st.caption("Simple personal finance tracker")
 
@@ -162,7 +198,7 @@ if submitted:
         st.success("Transaction added")
         st.cache_data.clear()  # clear cached secrets parsing
     else:
-        st.error("Could not save. Check connection and sharing permissions.")
+        st.error(st.session_state.get("_append_error") or "Could not save. Check connection and sharing permissions.")
 
 # Dashboard for current month
 df = load_df()
