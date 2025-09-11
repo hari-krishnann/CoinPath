@@ -24,6 +24,7 @@ EXPENSE_CATEGORIES = [
     "Healthcare", "Shopping", "Savings", "Education", "Other Expense",
 ]
 MODES = ["Cash", "Card", "UPI", "Bank Transfer", "Cheque"]
+ACCENT = "#0A84FF"  # iOS light blue
 
 # ---------- Helpers ----------
 @st.cache_data(show_spinner=False)
@@ -127,172 +128,186 @@ def append_row(date_value, row_type, mode, category, amount, notes) -> bool:
         st.session_state.setdefault("_append_error", str(e))
         return False
 
-# ---------- UI: Apple-like minimal styling ----------
+# ---------- UI: iOS-like styling (light blue accent, soft dark) ----------
 st.markdown(
-    """
+    f"""
     <style>
-      :root { --bg:#0a0a0a; --card:#111; --muted:#8a8a8a; --border:#262626; --accent:#00e59b; }
-      .stApp { background: var(--bg); color: #fff; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,'Helvetica Neue',Arial,'Noto Sans',sans-serif; }
-      #MainMenu, footer, header {visibility: hidden;}
-      .pill {display:inline-flex; align-items:center; gap:.5rem; padding:.35rem .6rem; border:1px solid var(--border); border-radius:999px; background:#0f0f0f; color:#eaeaea; font-size:.85rem;}
-      .metric-card {background: var(--card); border:1px solid var(--border); border-radius:16px; padding:12px 14px;}
-      .metric-val {font-weight:700; font-size:1.2rem}
-      .metric-label {color:var(--muted); font-size:.8rem}
-      .section {background: var(--card); border:1px solid var(--border); border-radius:16px; padding:16px;}
-      .chips {display:flex; flex-wrap:wrap; gap:8px}
-      .chip {padding:8px 12px; border:1px solid var(--border); border-radius:999px; background:#131313; color:#eaeaea; cursor:pointer;}
-      .chip.active {background: var(--accent); color:#001b10; border-color: var(--accent)}
-      .primary {background: var(--accent); color:#001b10; border:none; border-radius:12px; padding:12px 16px; font-weight:700}
-      .ghost {background:#161616; color:#eaeaea; border:1px solid var(--border); border-radius:12px; padding:12px 16px; font-weight:600}
-      .title {font-weight:700; font-size:1.1rem}
+      :root {{ --bg:#0b0b0d; --card:#111216; --muted:#9aa0a6; --border:#1f2126; --accent:{ACCENT}; }}
+      .stApp {{ background: var(--bg); color: #fff; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Helvetica,Arial,'Noto Sans',sans-serif; }}
+      #MainMenu, footer, header {{visibility: hidden;}}
+      .pill {{display:inline-flex; align-items:center; gap:.5rem; padding:.35rem .6rem; border:1px solid var(--border); border-radius:999px; background:#0f1014; color:#eaeaea; font-size:.85rem;}}
+      .metric-card {{background: var(--card); border:1px solid var(--border); border-radius:16px; padding:14px 16px;}}
+      .metric-val {{font-weight:700; font-size:1.25rem}}
+      .metric-label {{color:var(--muted); font-size:.8rem}}
+      .section {{background: var(--card); border:1px solid var(--border); border-radius:16px; padding:16px;}}
+      .title {{font-weight:700; font-size:1.05rem; margin-bottom:6px}}
+      .amount-display {{ font-variant-numeric: tabular-nums; font-weight: 800; font-size: 3rem; letter-spacing: .5px; text-align:center; margin: 6px 0 2px 0; }}
+      .subnote {{ color: var(--muted); font-size: .85rem; text-align:center; }}
+      .keypad {{ display:grid; grid-template-columns: repeat(3,1fr); gap:10px; margin-top: 12px; }}
+      .key {{ background:#14161b; border:1px solid var(--border); color:#eaeaea; border-radius:14px; padding:16px; font-size:1.25rem; text-align:center; cursor:pointer; }}
+      .key.primary {{ background: var(--accent); color:#001328; border:none; font-weight:800; }}
+      .seg {{display:flex; gap:6px; background:#0f1014; border:1px solid var(--border); padding:6px; border-radius:12px; width:100%;}}
+      .seg-btn {{flex:1; text-align:center; padding:10px 12px; border-radius:10px; color:#cbd1d8; cursor:pointer;}}
+      .seg-btn.active {{ background: #172238; color:#e8f1ff; border:1px solid #233251; }}
+      .chips {{display:flex; flex-wrap:wrap; gap:8px;}}
+      .chip {{ padding:8px 12px; border:1px solid var(--border); border-radius:999px; background:#14161b; color:#eaeaea; cursor:pointer;}}
+      .chip.active {{ background: var(--accent); color:#001328; border-color: var(--accent) }}
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-# Connection status pill
+# Connection status
 client_ok = get_sheets_client() is not None
-status_dot = "🟢" if client_ok else "🔴"
-status_text = "Google Sheets" if client_ok else "Local CSV"
-st.markdown(f"<span class='pill'>{status_dot} {status_text}</span>", unsafe_allow_html=True)
-
-st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+st.markdown(
+    f"<span class='pill'>{'🟢' if client_ok else '🔴'} {'Google Sheets' if client_ok else 'Local CSV'}</span>",
+    unsafe_allow_html=True,
+)
 
 st.title("Coin Path")
-st.caption("Delightfully simple personal finance")
+st.caption("Fast, simple finance tracker")
 
-# ---------- Add flow (clean & focused) ----------
+# ---------- Keypad-first entry ----------
+if "_amount" not in st.session_state:
+    st.session_state._amount = "0"
+if "_type" not in st.session_state:
+    st.session_state._type = "Expense"
+if "_mode" not in st.session_state:
+    st.session_state._mode = "Card"
+if "_cat" not in st.session_state:
+    st.session_state._cat = EXPENSE_CATEGORIES[0]
+
 with st.container():
     st.markdown("<div class='section'>", unsafe_allow_html=True)
-    col_a, col_b = st.columns([1,1])
-    with col_a:
-        trx_type = st.segmented_control("Type", options=["Expense", "Income"], default="Expense") if hasattr(st, 'segmented_control') else st.radio("Type", ["Expense", "Income"], horizontal=True)
-        amount = st.number_input("Amount ($)", min_value=0.01, step=1.00, format="%.2f")
-    with col_b:
-        trx_date = st.date_input("Date", value=datetime.now())
-        mode = st.selectbox("Mode", MODES)
+
+    # Type segmented control
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        exp_active = "active" if st.session_state._type == "Expense" else ""
+        if st.button("Expense", key="seg_exp", use_container_width=True):
+            st.session_state._type = "Expense"; st.session_state._cat = EXPENSE_CATEGORIES[0]
+        st.markdown(f"<div class='seg'><div class='seg-btn {exp_active}'></div></div>", unsafe_allow_html=True)
+    with col_t2:
+        inc_active = "active" if st.session_state._type == "Income" else ""
+        if st.button("Income", key="seg_inc", use_container_width=True):
+            st.session_state._type = "Income"; st.session_state._cat = INCOME_CATEGORIES[0]
+        st.markdown(f"<div class='seg'><div class='seg-btn {inc_active}'></div></div>", unsafe_allow_html=True)
+
+    # Amount display
+    st.markdown(f"<div class='amount-display'>$ {float(st.session_state._amount):,.2f}</div>", unsafe_allow_html=True)
+    st.markdown("<div class='subnote'>Tap to enter amount</div>", unsafe_allow_html=True)
+
+    # Keypad
+    def press_key(val: str):
+        amt = st.session_state._amount
+        if val == 'C':
+            st.session_state._amount = '0'
+        elif val == '⌫':
+            st.session_state._amount = amt[:-1] if len(amt) > 1 else '0'
+        elif val == '.':
+            if '.' not in amt:
+                st.session_state._amount = amt + '.'
+        else:
+            st.session_state._amount = (amt if amt != '0' else '') + val
+
+    kcols = st.columns(3)
+    keys = [['1','2','3'],['4','5','6'],['7','8','9'],['C','0','⌫']]
+    for row in keys:
+        c1, c2, c3 = st.columns(3)
+        for i, k in enumerate(row):
+            with (c1 if i==0 else c2 if i==1 else c3):
+                if st.button(k, key=f"k_{k}", use_container_width=True):
+                    press_key(k)
 
     # Category chips
     st.markdown("<div class='title'>Category</div>", unsafe_allow_html=True)
-    cats = INCOME_CATEGORIES if trx_type == "Income" else EXPENSE_CATEGORIES
-    if "_active_cat" not in st.session_state:
-        st.session_state._active_cat = cats[0]
-    chips_cols = st.columns(4)
+    cats = INCOME_CATEGORIES if st.session_state._type == "Income" else EXPENSE_CATEGORIES
+    chip_cols = st.columns(3)
     for i, c in enumerate(cats):
-        with chips_cols[i % 4]:
-            active = "active" if st.session_state._active_cat == c else ""
-            if st.button(c, key=f"chip_{c}"):
-                st.session_state._active_cat = c
+        with chip_cols[i % 3]:
+            active = "active" if st.session_state._cat == c else ""
+            if st.button(c, key=f"chip_{c}", use_container_width=True):
+                st.session_state._cat = c
             st.markdown(f"<div class='chip {active}'></div>", unsafe_allow_html=True)
-    notes = st.text_input("Notes (optional)")
-    col_btn1, col_btn2 = st.columns([1,1])
-    with col_btn1:
-        add_clicked = st.button("Add Transaction", use_container_width=True, type="primary")
-    with col_btn2:
-        st.button("Export CSV", use_container_width=True, on_click=None)
+
+    # Save row
+    c_left, c_right = st.columns([2,1])
+    with c_left:
+        notes = st.text_input("Add note (optional)")
+    with c_right:
+        st.session_state._mode = st.selectbox("Mode", MODES, index=MODES.index(st.session_state._mode))
+
+    save_clicked = st.button("Save", type="primary", use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-if 'last_added' not in st.session_state:
-    st.session_state.last_added = None
-
-if add_clicked:
-    ok = append_row(trx_date, trx_type, mode, st.session_state._active_cat, amount, notes)
-    if ok:
-        st.session_state.last_added = {
-            "Date": trx_date, "Type": trx_type, "Mode": mode,
-            "Category": st.session_state._active_cat, "Amount": amount, "Notes": notes
-        }
-        st.success("Added ✓")
-        st.cache_data.clear()
+if save_clicked:
+    amount_val = float(st.session_state._amount or 0)
+    if amount_val <= 0:
+        st.error("Enter a valid amount")
     else:
-        st.error(st.session_state.get("_append_error") or "Could not save. Check sharing & secrets.")
+        ok = append_row(datetime.now().date(), st.session_state._type, st.session_state._mode, st.session_state._cat, amount_val, notes)
+        if ok:
+            st.success("Saved ✓")
+            st.session_state._amount = "0"
+        else:
+            st.error(st.session_state.get("_append_error") or "Could not save.")
 
-# ---------- Overview & Insights ----------
+# ---------- Data & Monthly Sankey ----------
 df = load_df()
 now = datetime.now()
 if not df.empty:
-    df = ensure_datetime(df).dropna(subset=["Date"])  # safety
-    m_df = df[(df["Date"].dt.year == now.year) & (df["Date"].dt.month == now.month)]
-    income = float(m_df[m_df["Type"] == "Income"]["Amount"].sum())
-    expense = float(m_df[m_df["Type"] == "Expense"]["Amount"].sum())
-    balance = income - expense
+    df = ensure_datetime(df).dropna(subset=['Date'])
+    m_df = df[(df['Date'].dt.year == now.year) & (df['Date'].dt.month == now.month)]
+
+    inc_total = float(m_df[m_df['Type']=='Income']['Amount'].sum())
+    exp_total = float(m_df[m_df['Type']=='Expense']['Amount'].sum())
+    bal = inc_total - exp_total
 
     c1, c2, c3 = st.columns(3)
-    with c1:
-        st.markdown("<div class='metric-card'><div class='metric-label'>Income</div><div class='metric-val'>$%s</div></div>" % f"{income:,.2f}", unsafe_allow_html=True)
-    with c2:
-        st.markdown("<div class='metric-card'><div class='metric-label'>Expenses</div><div class='metric-val'>$%s</div></div>" % f"{expense:,.2f}", unsafe_allow_html=True)
-    with c3:
-        st.markdown("<div class='metric-card'><div class='metric-label'>Balance</div><div class='metric-val'>$%s</div></div>" % f"{balance:,.2f}", unsafe_allow_html=True)
+    c1.markdown(f"<div class='metric-card'><div class='metric-label'>Income</div><div class='metric-val'>$ {inc_total:,.2f}</div></div>", unsafe_allow_html=True)
+    c2.markdown(f"<div class='metric-card'><div class='metric-label'>Expenses</div><div class='metric-val'>$ {exp_total:,.2f}</div></div>", unsafe_allow_html=True)
+    c3.markdown(f"<div class='metric-card'><div class='metric-label'>Balance</div><div class='metric-val'>$ {bal:,.2f}</div></div>", unsafe_allow_html=True)
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-    # Charts container
-    st.markdown("<div class='section'>", unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
+    if not m_df.empty:
+        inc_df = m_df[m_df['Type']=='Income']
+        exp_df = m_df[m_df['Type']=='Expense']
+        if not inc_df.empty or not exp_df.empty:
+            # Nodes: income categories + Total Income + expense categories
+            income_nodes = sorted(inc_df['Category'].unique()) if not inc_df.empty else []
+            expense_nodes = sorted(exp_df['Category'].unique()) if not exp_df.empty else []
+            nodes = income_nodes + ["Total Income"] + expense_nodes
+            idx = {n:i for i,n in enumerate(nodes)}
 
-    # Donut: expenses by category (or income by category if income view)
-    with col1:
-        if not m_df.empty:
-            exp = m_df[m_df["Type"] == "Expense"].groupby("Category")["Amount"].sum().reset_index()
-            if exp.empty:
-                st.caption("No expenses yet this month")
-            else:
-                fig = px.pie(exp, values="Amount", names="Category", hole=0.55, color_discrete_sequence=px.colors.sequential.Teal)
-                fig.update_layout(height=360, paper_bgcolor="#111", plot_bgcolor="#111", font_color="#eaeaea", margin=dict(l=10,r=10,t=10,b=10))
-                st.plotly_chart(fig, use_container_width=True)
+            sources, targets, values, colors = [], [], [], []
+            # income source -> Total Income
+            for cat in income_nodes:
+                val = float(inc_df.loc[inc_df['Category']==cat, 'Amount'].sum())
+                if val>0:
+                    sources.append(idx[cat]); targets.append(idx['Total Income']); values.append(val); colors.append('rgba(10,132,255,0.65)')
+            # Total Income -> expense categories
+            for cat in expense_nodes:
+                val = float(exp_df.loc[exp_df['Category']==cat, 'Amount'].sum())
+                if val>0:
+                    sources.append(idx['Total Income']); targets.append(idx[cat]); values.append(val); colors.append('rgba(255,100,92,0.65)')
 
-    # Trend: daily net flow
-    with col2:
-        if not m_df.empty:
-            daily = m_df.copy()
-            daily.loc[daily["Type"] == "Expense", "AmountSigned"] = -daily.loc[daily["Type"] == "Expense", "Amount"]
-            daily.loc[daily["Type"] == "Income", "AmountSigned"] = daily.loc[daily["Type"] == "Income", "Amount"]
-            series = daily.groupby(daily["Date"].dt.date)["AmountSigned"].sum().reset_index()
-            series["CumBalance"] = series["AmountSigned"].cumsum()
-            fig2 = go.Figure()
-            fig2.add_trace(go.Scatter(x=series["Date"], y=series["CumBalance"], fill='tozeroy', mode='lines', line=dict(color="#00e59b", width=3)))
-            fig2.update_layout(height=360, paper_bgcolor="#111", plot_bgcolor="#111", font_color="#eaeaea", margin=dict(l=10,r=10,t=10,b=10), xaxis=dict(gridcolor="#333"), yaxis=dict(gridcolor="#333"))
-            st.plotly_chart(fig2, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    st.subheader("Recent Transactions")
-    st.dataframe(
-        m_df.sort_values("Date", ascending=False).head(20)[["Date", "Type", "Mode", "Category", "Amount", "Notes"]],
-        use_container_width=True, hide_index=True,
-    )
+            sankey = go.Figure(data=[go.Sankey(
+                arrangement='snap',
+                node=dict(
+                    pad=18, thickness=18,
+                    label=nodes, color=["#192132"]*len(nodes),
+                    line=dict(color="#22314f", width=1)
+                ),
+                link=dict(source=sources, target=targets, value=values, color=colors)
+            )])
+            sankey.update_layout(
+                title=f"Money Flow • {now.strftime('%B %Y')}",
+                paper_bgcolor="#111216", font_color="#eaeaea", height=420, margin=dict(l=10,r=10,t=40,b=10)
+            )
+            st.plotly_chart(sankey, use_container_width=True)
 else:
     st.info("No data yet. Add your first transaction above.")
-
-# ---------- Diagnostics ----------
-with st.expander("🔍 Connection diagnostics", expanded=not client_ok):
-    creds_raw = st.secrets.get("google_credentials")
-    sa_email = None
-    try:
-        if isinstance(creds_raw, str):
-            sa_email = json.loads(creds_raw).get("client_email")
-        elif isinstance(creds_raw, dict):
-            sa_email = creds_raw.get("client_email")
-    except Exception:
-        pass
-    st.write("- **Service account email**:", sa_email or "(missing)")
-    st.write("- **Spreadsheet**:", SHEET_NAME)
-    st.write("- **Worksheet**:", WORKSHEET_NAME)
-    if st.button("Run diagnostics"):
-        client = get_sheets_client()
-        if client is None:
-            st.error("No Google Sheets client. Check secrets format and API access.")
-        else:
-            try:
-                ws = get_worksheet(client)
-                st.success("Opened spreadsheet and worksheet successfully")
-                try:
-                    _ = ws.row_count
-                    st.success("Worksheet is readable")
-                except Exception as e:
-                    st.error(f"Read test failed: {e}")
-            except Exception as e:
-                st.error(f"Open spreadsheet failed: {e}")
 
 # ---------- Export ----------
 df_all = load_df()
