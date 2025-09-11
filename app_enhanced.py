@@ -43,7 +43,10 @@ def get_sheets_client():
         creds_info = _parse_google_secrets(creds_raw)
         creds = Credentials.from_service_account_info(
             creds_info,
-            scopes=["https://www.googleapis.com/auth/spreadsheets"],
+            scopes=[
+                "https://www.googleapis.com/auth/spreadsheets",
+                "https://www.googleapis.com/auth/drive",
+            ],
         )
         return gspread.authorize(creds)
     except Exception as e:
@@ -52,12 +55,17 @@ def get_sheets_client():
 
 def get_worksheet(client: gspread.Client):
     """Open spreadsheet and return a worksheet handle; create if missing."""
+    # Allow opening by explicit sheet ID to avoid Drive listing scope issues
+    sheet_id = st.secrets.get("sheet_id") or os.environ.get("SHEET_ID")
     try:
-        sh = client.open(SHEET_NAME)
+        if sheet_id:
+            sh = client.open_by_key(sheet_id)
+        else:
+            sh = client.open(SHEET_NAME)
     except gspread.SpreadsheetNotFound:
         # If the spreadsheet itself doesn't exist, raise a helpful error
         raise RuntimeError(
-            f"Spreadsheet '{SHEET_NAME}' not found. Create it in Google Sheets and share with the service account."
+            f"Spreadsheet '{SHEET_NAME}' not found. Create it (or set secret 'sheet_id' with the Sheet ID) and share with the service account."
         )
 
     try:
