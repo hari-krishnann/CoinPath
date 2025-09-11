@@ -171,6 +171,8 @@ with st.expander("🔍 Connection diagnostics", expanded=not client_ok):
                     st.success("Worksheet is readable")
                 except Exception as e:
                     st.error(f"Read test failed: {e}")
+            except Exception as e:
+                st.error(f"Open spreadsheet failed: {e}")
 
 st.title("Coin Path")
 st.caption("Simple personal finance tracker")
