@@ -308,7 +308,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Google Sheets configuration
-SHEET_NAME = "Finance Tracker"
+SHEET_NAME = "Coin Path"
 WORKSHEET_NAME = "Transactions"
 
 def get_google_sheets_client():
