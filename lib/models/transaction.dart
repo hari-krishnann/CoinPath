@@ -1,5 +1,5 @@
 // models/transaction.dart
-// Model for a transaction (income or expense)
+// Model for a transaction (income or expense) - Updated for compatibility
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class TransactionModel {
@@ -9,8 +9,15 @@ class TransactionModel {
   final String category;
   final DateTime date;
   final String? notes;
-  final String paymentMethod; // 'cash' or 'bank'
+  final String paymentMethod; // 'cash', 'cheque', 'amex', 'bofa', 'discover', 'apple_card', 'zolve'
   final bool isRecurring;
+  
+  // Enhanced fields for your workflow
+  final String? accountType; // 'income_source', 'credit_card', 'payment'
+  final String? linkedTransactionId; // For linking credit card payments to spending
+  final double? outstandingBalance; // For credit cards
+  final DateTime? dueDate; // For credit card payments
+  final bool isPaid; // For tracking payment status
   
   // New fields for revolutionary features
   final double? spareChangeRoundup; // For smart investing
@@ -28,7 +35,12 @@ class TransactionModel {
     required this.date,
     this.notes,
     required this.paymentMethod,
-    required this.isRecurring,
+    this.isRecurring = false, // Made optional with default value
+    this.accountType,
+    this.linkedTransactionId,
+    this.outstandingBalance,
+    this.dueDate,
+    this.isPaid = false,
     this.spareChangeRoundup,
     this.creditScoreImpact,
     this.merchantId,
@@ -48,6 +60,11 @@ class TransactionModel {
       notes: data['notes'],
       paymentMethod: data['paymentMethod'] ?? 'cash',
       isRecurring: data['isRecurring'] ?? false,
+      accountType: data['accountType'],
+      linkedTransactionId: data['linkedTransactionId'],
+      outstandingBalance: data['outstandingBalance']?.toDouble(),
+      dueDate: (data['dueDate'] as Timestamp?)?.toDate(),
+      isPaid: data['isPaid'] ?? false,
       spareChangeRoundup: data['spareChangeRoundup']?.toDouble(),
       creditScoreImpact: data['creditScoreImpact'],
       merchantId: data['merchantId'],
@@ -68,6 +85,11 @@ class TransactionModel {
       'notes': notes,
       'paymentMethod': paymentMethod,
       'isRecurring': isRecurring,
+      'accountType': accountType,
+      'linkedTransactionId': linkedTransactionId,
+      'outstandingBalance': outstandingBalance,
+      'dueDate': dueDate,
+      'isPaid': isPaid,
       'spareChangeRoundup': spareChangeRoundup,
       'creditScoreImpact': creditScoreImpact,
       'merchantId': merchantId,

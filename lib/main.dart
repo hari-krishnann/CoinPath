@@ -1,30 +1,15 @@
 // main.dart
-// Entry point for CoinPath Finance App with modern design system
+// Entry point for CoinPath Finance App with ultra-modern design system
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'screens/home_page.dart';
 import 'theme.dart';
 import 'models/budget.dart';
-import 'services/firestore_service.dart';
-
-// Test Firestore connection
-void testFirestore() async {
-  try {
-    await FirebaseFirestore.instance.collection('test').add({'timestamp': DateTime.now()});
-    final snapshot = await FirebaseFirestore.instance.collection('test').get();
-    for (var doc in snapshot.docs) {
-      print('Document ID: ${doc.id}, Data: ${doc.data()}');
-    }
-    print('Firestore test completed successfully.');
-  } catch (e) {
-    print('Error testing Firestore: $e');
-  }
-}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
   await Firebase.initializeApp(
     options: const FirebaseOptions(
       apiKey: "AIzaSyBPeHXl_S194HYalYctAbnvSpc0JRpoCcQ",
@@ -37,14 +22,11 @@ void main() async {
     ),
   );
 
-  // Run Firestore test
-  testFirestore();
-
   runApp(const CoinPathApp());
 }
 
 class CoinPathApp extends StatelessWidget {
-  const CoinPathApp({Key? key}) : super(key: key);
+  const CoinPathApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -57,9 +39,10 @@ class CoinPathApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'CoinPath Finance',
-        theme: AppTheme.darkTheme,
-        themeMode: ThemeMode.dark,
-        home: HomePage(),
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system,
+        home: const HomePage(),
         debugShowCheckedModeBanner: false,
       ),
     );
